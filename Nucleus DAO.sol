@@ -381,13 +381,6 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
     mapping(address => bool) private _isDelivers;
     mapping(address => bool) private _whiteList;
     mapping(address => bool) public _isBot;
-
-    uint256 public node5Amount = 0;
-    
-    
-
-    uint256 public node5DivAmount = 0;
-    
     
 
     bool public isLaunch = false;
@@ -403,7 +396,7 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
     address public lpAddress = address(0x4Aa1f74138671454459C185d11Ea6f372e1a482b);
     address public luckyAddress = address(0x05D4114087D20AaBe8Ed6804a7fcc8E5eb86B7D2);//幸运池地址
     address public daoAddress = address(0xFCb4f9e11f119E2Ffe889595A0232D2A63056D0f);
-    address public ReferrerAddress = address(0x8720334B72c0f293b0Fc302161B45f56446ee2D2);//直推荐人地址
+    address public referrerAddress = address(0x8720334B72c0f293b0Fc302161B45f56446ee2D2);//直推荐人地址
     mapping(uint256 => address[]) public rounds;
     mapping(uint256 => mapping(address => uint256)) public rNodeRewards;
     mapping(uint256 => address[]) public roundNodes;
@@ -463,7 +456,7 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
          isExcludedFromFee[lpAddress] = true;
         isExcludedFromFee[luckyAddress] = true;
         isExcludedFromFee[daoAddress] = true;
-        isExcludedFromFee[ReferrerAddress] = true;
+        isExcludedFromFee[referrerAddress] = true;
         inviterRequireLockTime = 60;
     }
 
@@ -777,38 +770,6 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
             return thresTxAmount;
     }
 
-    function _node5Proc(address node) internal returns (bool){
-         if(roundNodes[roundIndex].length < 5){
-                uint256 i ;
-                for( i = 0; i< roundNodes[roundIndex].length; i++){
-                    if(roundNodes[roundIndex][i] == node){
-                        break;
-                    }
-                }
-                if(i == roundNodes[roundIndex].length)
-                    roundNodes[roundIndex].push(node);
-        }else if(roundNodes[roundIndex][0] != node){
-
-            uint256 minReward  = rNodeRewards[roundIndex][roundNodes[roundIndex][0]];
-            uint256 minRIndex = 0;
-            uint256 i;
-            for(i = 1; i< 5; i++){
-                if(roundNodes[roundIndex][i] == node){
-                        break;
-                }
-                if(minReward > rNodeRewards[roundIndex][roundNodes[roundIndex][i]]){
-                    minReward = rNodeRewards[roundIndex][roundNodes[roundIndex][i]];
-                    minRIndex = i;
-                }
-
-            }
-            if(i == 5 && minReward < rNodeRewards[roundIndex][node]){
-                 roundNodes[roundIndex][minRIndex] = node;
-            }
-        }
-        return true;
-    }
-
     function _buyTransfer(
          address sender,
         address recipient,
@@ -831,25 +792,20 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
                 inviteCanTransfer[recipient] = true;
             if(amount >= thresTxAmount){
                 if(lastTime != 0 && lastTime.add(3600) < block.timestamp){
-
-                    roundNodeAmounts[roundIndex] = node5Amount.sub(node5DivAmount);
-                    
                     roundIndex++;
-                    
-                    node5DivAmount = node5Amount;
                 }
                 lastTime = block.timestamp;
                 if (inviter[recipient] == address(0)) {
-                    inviter[recipient] = ReferrerAddress; 
+                    inviter[recipient] = referrerAddress; 
                     inviterLockTime[recipient] = block.timestamp;
                  } else {
                         if (
                             inviterLockTime[recipient] >
                             block.timestamp - inviterRequireLockTime &&
-                            inviter[recipient] != ReferrerAddress
+                            inviter[recipient] != referrerAddress
                         ) {
                             
-                            inviter[recipient] = ReferrerAddress;
+                            inviter[recipient] = referrerAddress;
                             inviterLockTime[recipient] = block.timestamp;
                         }
                 }
@@ -865,25 +821,22 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
                         }
                     }
                 }
-                if(isNodes[recipient] && !isRNode[roundIndex][recipient]){
-                    _node5Proc(recipient);
-                }
                 if(!isRNode[roundIndex][recipient])
                     isRNode[roundIndex][recipient] = true;
                 
             }else{
 
                 if (inviter[recipient] == address(0)) {
-                    inviter[recipient] = ReferrerAddress; 
+                    inviter[recipient] = referrerAddress; 
                     inviterLockTime[recipient] = block.timestamp;
                  } else {
                         if (
                             inviterLockTime[recipient] >
                             block.timestamp - inviterRequireLockTime &&
-                            inviter[recipient] != ReferrerAddress
+                            inviter[recipient] != referrerAddress
                         ) {
                             
-                            inviter[recipient] = ReferrerAddress;
+                            inviter[recipient] = referrerAddress;
                             inviterLockTime[recipient] = block.timestamp;
                         }
                 }
@@ -892,32 +845,29 @@ contract NCS is Context, IERC20, IERC20Metadata, Ownable {
 
             uint256 share = amount.div(100);
             address refer = inviter[recipient];
-            if(refer != ReferrerAddress && !inviterBlack[refer] && balanceOf(refer) >= _maxRAmount)
+            if(refer != referrerAddress && !inviterBlack[refer] && balanceOf(refer) >= _maxRAmount)
              {
                 _balances[refer] = _balances[refer].add(share.mul(referFee));
                 emit Transfer(sender, refer, share.mul(referFee));
              }else{
-                _balances[ReferrerAddress] = _balances[ReferrerAddress].add(share.mul(referFee));
-                emit Transfer(sender, ReferrerAddress, share.mul(referFee));
-                if(refer == ReferrerAddress){
-                    _balances[ReferrerAddress] = _balances[ReferrerAddress].add(share.mul(nodeFee));
-                    emit Transfer(sender, ReferrerAddress, share.mul(nodeFee));
+                _balances[referrerAddress] = _balances[referrerAddress].add(share.mul(referFee));
+                emit Transfer(sender, referrerAddress, share.mul(referFee));
+                if(refer == referrerAddress){
+                    _balances[referrerAddress] = _balances[referrerAddress].add(share.mul(nodeFee));
+                    emit Transfer(sender, referrerAddress, share.mul(nodeFee));
                 }
              } 
-             while(refer != ReferrerAddress){
+             while(refer != referrerAddress){
                 if(isNodes[refer] && !inviterBlack[refer] && _isValidAddrs[refer] && balanceOf(refer) >= _maxRAmount){
                     _balances[refer] = _balances[refer].add(share.mul(nodeFee));
                     emit Transfer(sender, refer, share.mul(nodeFee));
                     rNodeRewards[roundIndex][refer] += share.mul(nodeFee);
-                    if(isRNode[roundIndex][refer]){
-                        _node5Proc(refer);
-                    }
                     break;
                 }
                 refer = inviter[refer];
-                if(refer == ReferrerAddress){
-                    _balances[ReferrerAddress] = _balances[ReferrerAddress].add(share.mul(nodeFee));
-                    emit Transfer(sender, ReferrerAddress, share.mul(nodeFee));
+                if(refer == referrerAddress){
+                    _balances[referrerAddress] = _balances[referrerAddress].add(share.mul(nodeFee));
+                    emit Transfer(sender, referrerAddress, share.mul(nodeFee));
                 }
              }
              _balances[daoAddress] =_balances[daoAddress].add(share.mul(daoFee));
